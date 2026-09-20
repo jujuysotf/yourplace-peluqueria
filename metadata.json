@@ -1,0 +1,6 @@
+{
+  "name": "Your place - Peluquería por Jessica Lescano",
+  "description": "Peluquería en Libertad y Lavalle, San Miguel de Tucumán. Balayage, mechas, cortes visagistas, botox capilar y reservas de turnos online integradas con Google Calendar.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

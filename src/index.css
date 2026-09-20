@@ -1,0 +1,50 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --color-gold-gradient: linear-gradient(135deg, #E8B4B8 0%, #D4AF37 50%, #C98287 100%);
+  }
+
+  body {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+  }
+
+  h1, h2, h3, .font-serif {
+    font-family: 'Cormorant Garamond', Georgia, serif;
+  }
+
+  .font-script {
+    font-family: 'Great Vibes', cursive;
+  }
+}
+
+/* Custom metallic rose gold text & borders */
+.text-rosegold-gradient {
+  background: linear-gradient(135deg, #D89A9E 0%, #E5A99C 50%, #C98287 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.bg-rosegold-gradient {
+  background: linear-gradient(135deg, #D89A9E 0%, #E5A99C 50%, #C98287 100%);
+}
+
+.border-rosegold {
+  border-color: #E8B4B8;
+}
+
+/* Smooth custom scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #FAF7F2;
+}
+::-webkit-scrollbar-thumb {
+  background: #D89A9E;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #C98287;
+}
