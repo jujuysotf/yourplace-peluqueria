@@ -137,7 +137,11 @@ export async function getCalendarBusyTimes(dateStr: string): Promise<BusyRange[]
 }
 
 /**
- * Creates an event in Google Calendar and invites client
+ * Creates an event in the salon's Google Calendar.
+ *
+ * Service accounts on personal Gmail cannot invite attendees
+ * (needs Domain-Wide Delegation / Google Workspace). Client info
+ * is stored in the event description; the UI can offer "Add to my calendar".
  */
 export async function createGoogleCalendarEvent(bookingData: {
   serviceName: string;
@@ -169,38 +173,24 @@ export async function createGoogleCalendarEvent(bookingData: {
   const startDateTime = `${bookingData.date}T${bookingData.time}:00${TIMEZONE_OFFSET}`;
   const endDateTime = `${bookingData.date}T${endTimeStr}:00${TIMEZONE_OFFSET}`;
 
-  const attendees: Array<{ email: string; displayName?: string; responseStatus?: string }> = [
-    {
-      email: OWNER_CALENDAR_ID,
-      displayName: 'Jessica Lescano',
-      responseStatus: 'accepted'
-    }
-  ];
-  if (bookingData.clientEmail && bookingData.clientEmail.includes('@') && !bookingData.clientEmail.includes('sin-correo')) {
-    attendees.push({
-      email: bookingData.clientEmail.trim(),
-      displayName: bookingData.clientName
-    });
-  }
-
   const description = [
-    `💇 Turno en Peluquería Your place (Jessica Lescano)`,
+    `Turno en Peluqueria Your place (Jessica Lescano)`,
     `----------------------------------------------------`,
     `Ref: ${bookingData.referenceCode || 'YP-' + Date.now().toString().slice(-4)}`,
     `Servicio: ${bookingData.serviceName} (${bookingData.serviceDuration} min)`,
     `Clienta: ${bookingData.clientName}`,
-    `Teléfono: ${bookingData.clientPhone}`,
+    `Telefono: ${bookingData.clientPhone}`,
     bookingData.clientEmail ? `Email: ${bookingData.clientEmail}` : '',
     bookingData.clientNotes ? `Nota de la clienta: ${bookingData.clientNotes}` : '',
     ``,
-    `📍 Salón: Libertad y Lavalle, San Miguel de Tucumán`,
-    `WhatsApp Salón: +54 9 3886 07-4857`
+    `Salon: Libertad y Lavalle, San Miguel de Tucuman`,
+    `WhatsApp Salon: +54 9 3886 07-4857`
   ].filter(Boolean).join('\n');
 
   const eventPayload: any = {
     summary: `Turno Your place: ${bookingData.serviceName} - ${bookingData.clientName}`,
     description,
-    location: 'Libertad y Lavalle, San Miguel de Tucumán, Argentina',
+    location: 'Libertad y Lavalle, San Miguel de Tucuman, Argentina',
     start: {
       dateTime: startDateTime,
       timeZone: TIMEZONE
@@ -212,7 +202,6 @@ export async function createGoogleCalendarEvent(bookingData: {
     colorId: '4',
     status: 'confirmed',
     transparency: 'opaque',
-    attendees,
     reminders: {
       useDefault: false,
       overrides: [
@@ -224,8 +213,7 @@ export async function createGoogleCalendarEvent(bookingData: {
 
   const created = await calendar.events.insert({
     calendarId: OWNER_CALENDAR_ID,
-    requestBody: eventPayload,
-    sendUpdates: 'all'
+    requestBody: eventPayload
   });
 
   return created.data;

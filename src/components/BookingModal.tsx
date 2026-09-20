@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { createWhatsAppConfirmationUrl } from '../utils/calendar';
 import { getStoredClientUser, saveClientUser, createGoogleClientUser, createGuestClientUser, removeClientUser } from '../utils/auth';
+import { signInWithGoogleAccount, clearGoogleAccessToken, addBookingToClientGoogleCalendar } from '../utils/googleAuth';
 import { 
   getStoredBookings, 
   saveBooking, 
@@ -53,6 +54,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   // Estado del usuario cliente (Google o Invitado)
   const [clientUser, setClientUser] = useState<ClientUser | null>(null);
   const [authChoice, setAuthChoice] = useState<'google' | 'guest'>('guest');
+  const [isGoogleSigningIn, setIsGoogleSigningIn] = useState(false);
 
   // Estado del formulario de reserva
   const [selectedService, setSelectedService] = useState<Service | null>(null);
@@ -72,6 +74,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   const [isSubmittingToGoogle, setIsSubmittingToGoogle] = useState<boolean>(false);
   const [googleCalendarSyncSuccess, setGoogleCalendarSyncSuccess] = useState<boolean>(false);
   const [googleCalendarEventLink, setGoogleCalendarEventLink] = useState<string>('');
+  const [clientCalendarSyncSuccess, setClientCalendarSyncSuccess] = useState<boolean>(false);
+  const [clientCalendarEventLink, setClientCalendarEventLink] = useState<string>('');
   const [calendarSource, setCalendarSource] = useState<string>('Google Calendar');
 
   // Navegación mensual del calendario
@@ -136,59 +140,29 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     setCurrentStep(1);
     setConfirmedBooking(null);
     setSelectedTime('');
+    setGoogleCalendarSyncSuccess(false);
+    setGoogleCalendarEventLink('');
+    setClientCalendarSyncSuccess(false);
+    setClientCalendarEventLink('');
     const currentBookings = getStoredBookings();
     setExistingBookings(currentBookings);
   };
 
-  // Manejo de Inicio de Sesión con Google para la clienta
-  const handleGoogleSignIn = () => {
-    // Si la API de Google Identity Services está cargada en la ventana
-    const google = (window as any).google;
-    if (google?.accounts?.id) {
-      // Intentar prompt nativo
-      try {
-        google.accounts.id.initialize({
-          client_id: 'yourplace-salon-client',
-          callback: (response: any) => {
-            if (response.credential) {
-              const base64Url = response.credential.split('.')[1];
-              const decoded = JSON.parse(atob(base64Url.replace(/-/g, '+').replace(/_/g, '/')));
-              const user = createGoogleClientUser({
-                name: decoded.name || 'Clienta Google',
-                email: decoded.email || '',
-                picture: decoded.picture,
-                sub: decoded.sub
-              });
-              setClientUser(user);
-              setAuthChoice('google');
-              setClientName(user.name);
-              setClientEmail(user.email);
-            }
-          }
-        });
-        google.accounts.id.prompt();
-      } catch (err) {
-        console.warn('Google GSI prompt fallback', err);
-      }
-    }
-
-    // Modal de acceso directo con cuenta Google del celular
-    const emailPrompt = window.prompt(
-      'Ingresá tu cuenta de Google (Gmail) para vincular automáticamente tu turno:',
-      clientEmail || ''
-    );
-
-    if (emailPrompt && emailPrompt.includes('@')) {
-      const nameGuess = emailPrompt.split('@')[0].replace(/[._]/g, ' ');
-      const formattedName = nameGuess.charAt(0).toUpperCase() + nameGuess.slice(1);
-      const user = createGoogleClientUser({
-        name: clientName || formattedName,
-        email: emailPrompt.trim().toLowerCase()
-      });
+  // Manejo de Inicio de Sesión con Google para la clienta (popup real de cuentas)
+  const handleGoogleSignIn = async () => {
+    try {
+      setIsGoogleSigningIn(true);
+      const profile = await signInWithGoogleAccount();
+      const user = createGoogleClientUser(profile);
       setClientUser(user);
       setAuthChoice('google');
       setClientName(user.name);
       setClientEmail(user.email);
+    } catch (err: any) {
+      console.error('Google sign-in error:', err);
+      window.alert(err?.message || 'No se pudo iniciar sesión con Google.');
+    } finally {
+      setIsGoogleSigningIn(false);
     }
   };
 
@@ -202,6 +176,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
   const handleLogout = () => {
     removeClientUser();
+    clearGoogleAccessToken();
     setClientUser(null);
     setAuthChoice('guest');
     setClientName('');
@@ -325,7 +300,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     };
 
     try {
-      // Registrar directamente en el Google Calendar de Jessica mediante la Service Account
+      // 1) Agenda del salón (Jessica) vía Service Account
       const gResult = await createGoogleCalendarBooking(newBooking);
       if (gResult.success) {
         newBooking.syncedToGoogleCalendar = true;
@@ -337,9 +312,24 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         setGoogleCalendarSyncSuccess(false);
         console.warn('Could not auto-insert to Google Calendar:', gResult.error);
       }
+
+      // 2) Agenda de la clienta (solo si inició sesión con Google)
+      if (authChoice === 'google') {
+        const clientResult = await addBookingToClientGoogleCalendar(newBooking);
+        setClientCalendarSyncSuccess(clientResult.success);
+        if (clientResult.success && clientResult.htmlLink) {
+          setClientCalendarEventLink(clientResult.htmlLink);
+        } else if (!clientResult.success) {
+          console.warn('Could not insert into client Google Calendar:', clientResult.error);
+        }
+      } else {
+        setClientCalendarSyncSuccess(false);
+        setClientCalendarEventLink('');
+      }
     } catch (err) {
       console.warn('Google Calendar auto-sync error:', err);
       setGoogleCalendarSyncSuccess(false);
+      setClientCalendarSyncSuccess(false);
     } finally {
       setIsSubmittingToGoogle(false);
     }
@@ -724,7 +714,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                         <button
                           type="button"
                           onClick={handleGoogleSignIn}
-                          className="p-3 rounded-xl bg-white border border-[#DDD] hover:border-[#4285F4] hover:shadow-xs flex items-center justify-center gap-2 text-xs font-bold text-[#3C4043] transition-all"
+                          disabled={isGoogleSigningIn}
+                          className="p-3 rounded-xl bg-white border border-[#DDD] hover:border-[#4285F4] hover:shadow-xs flex items-center justify-center gap-2 text-xs font-bold text-[#3C4043] transition-all disabled:opacity-60 disabled:cursor-wait"
                         >
                           <svg className="w-4 h-4" viewBox="0 0 24 24">
                             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -732,7 +723,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                             <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
                             <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
                           </svg>
-                          <span>Iniciar sesión con Google</span>
+                          <span>{isGoogleSigningIn ? 'Conectando...' : 'Iniciar sesión con Google'}</span>
                         </button>
 
                         {/* Botón Entrar como Invitada */}
@@ -749,6 +740,16 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                           <span>Entrar como invitada</span>
                         </button>
                       </div>
+                    )}
+
+                    {clientUser?.provider === 'google' ? (
+                      <p className="text-[11px] text-[#666] leading-relaxed">
+                        Al confirmar, el turno se agrega a la agenda de Jessica y también a tu Google Calendar.
+                      </p>
+                    ) : (
+                      <p className="text-[11px] text-[#888] leading-relaxed">
+                        Con Google, el turno también queda en tu Calendar. Como invitada solo se reserva en la agenda del salón.
+                      </p>
                     )}
                   </div>
 
@@ -904,11 +905,40 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                           Libertad y Lavalle - San Miguel de Tucumán
                         </span>
                       </div>
-                      <div className="col-span-2 pt-1 border-t border-[#F2ECE8]">
+                      <div className="col-span-2 pt-1 border-t border-[#F2ECE8] space-y-1.5">
                         <span className="text-[11px] text-[#666] flex items-center gap-1.5">
-                          <CheckCircle2 size={13} className="text-[#25D366]" />
-                          Organizador: Jessica Lescano (<code>jujuysotf@gmail.com</code>)
+                          <CheckCircle2
+                            size={13}
+                            className={googleCalendarSyncSuccess ? 'text-[#25D366]' : 'text-[#C9A0A3]'}
+                          />
+                          Agenda del salón (Jessica):{' '}
+                          {googleCalendarSyncSuccess ? 'sincronizada' : 'no sincronizada'}
                         </span>
+                        {confirmedBooking.clientAuthProvider === 'google' && (
+                          <span className="text-[11px] text-[#666] flex items-center gap-1.5">
+                            <CheckCircle2
+                              size={13}
+                              className={clientCalendarSyncSuccess ? 'text-[#25D366]' : 'text-[#C9A0A3]'}
+                            />
+                            Tu Google Calendar:{' '}
+                            {clientCalendarSyncSuccess ? (
+                              clientCalendarEventLink ? (
+                                <a
+                                  href={clientCalendarEventLink}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-[#B77176] underline font-semibold"
+                                >
+                                  turno agregado
+                                </a>
+                              ) : (
+                                'turno agregado'
+                              )
+                            ) : (
+                              'no se pudo agregar'
+                            )}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
