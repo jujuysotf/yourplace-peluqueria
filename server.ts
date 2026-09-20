@@ -1,7 +1,15 @@
+import 'dotenv/config';
 import express from 'express';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import { getCalendarBusyTimes, createGoogleCalendarEvent, hasCalendarCredentials } from './server/calendarService';
+
+// Solo para desarrollo en PCs con antivirus/proxy que interceptan HTTPS (certificado self-signed).
+// Nunca usar en producción.
+if (process.env.ALLOW_INSECURE_TLS === '1') {
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+  console.warn('[dev] ALLOW_INSECURE_TLS=1 — verificación TLS desactivada');
+}
 
 const PORT = 3000;
 const TIMEZONE_OFFSET = '-03:00';
@@ -40,10 +48,16 @@ async function startServer() {
         message: 'Google Calendar API conectado exitosamente con jujuysotf@gmail.com'
       });
     } catch (err: any) {
-      res.status(500).json({
+      const message = err?.message || 'Error al conectar con Google Calendar API';
+      console.error('Error in /api/calendar/status:', message);
+      res.status(200).json({
         connected: false,
         calendarId: 'jujuysotf@gmail.com',
-        error: err?.message || 'Error al conectar con Google Calendar API'
+        error: message,
+        hint:
+          message.includes('self-signed certificate')
+            ? 'En esta PC hay un proxy/antivirus. Agregá ALLOW_INSECURE_TLS=1 al .env (solo local) y reiniciá.'
+            : undefined
       });
     }
   });

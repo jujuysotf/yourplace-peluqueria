@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 import { createWhatsAppConfirmationUrl } from '../utils/calendar';
 import { getStoredClientUser, saveClientUser, createGoogleClientUser, createGuestClientUser, removeClientUser } from '../utils/auth';
-import { signInWithGoogleAccount, clearGoogleAccessToken, addBookingToClientGoogleCalendar } from '../utils/googleAuth';
+import { signInWithGoogleAccount } from '../utils/googleAuth';
 import { 
   getStoredBookings, 
   saveBooking, 
@@ -74,8 +74,6 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   const [isSubmittingToGoogle, setIsSubmittingToGoogle] = useState<boolean>(false);
   const [googleCalendarSyncSuccess, setGoogleCalendarSyncSuccess] = useState<boolean>(false);
   const [googleCalendarEventLink, setGoogleCalendarEventLink] = useState<string>('');
-  const [clientCalendarSyncSuccess, setClientCalendarSyncSuccess] = useState<boolean>(false);
-  const [clientCalendarEventLink, setClientCalendarEventLink] = useState<string>('');
   const [calendarSource, setCalendarSource] = useState<string>('Google Calendar');
 
   // Navegación mensual del calendario
@@ -140,10 +138,6 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     setCurrentStep(1);
     setConfirmedBooking(null);
     setSelectedTime('');
-    setGoogleCalendarSyncSuccess(false);
-    setGoogleCalendarEventLink('');
-    setClientCalendarSyncSuccess(false);
-    setClientCalendarEventLink('');
     const currentBookings = getStoredBookings();
     setExistingBookings(currentBookings);
   };
@@ -176,7 +170,6 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
   const handleLogout = () => {
     removeClientUser();
-    clearGoogleAccessToken();
     setClientUser(null);
     setAuthChoice('guest');
     setClientName('');
@@ -300,7 +293,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     };
 
     try {
-      // 1) Agenda del salón (Jessica) vía Service Account
+      // Registrar directamente en el Google Calendar de Jessica mediante la Service Account
       const gResult = await createGoogleCalendarBooking(newBooking);
       if (gResult.success) {
         newBooking.syncedToGoogleCalendar = true;
@@ -312,24 +305,9 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         setGoogleCalendarSyncSuccess(false);
         console.warn('Could not auto-insert to Google Calendar:', gResult.error);
       }
-
-      // 2) Agenda de la clienta (solo si inició sesión con Google)
-      if (authChoice === 'google') {
-        const clientResult = await addBookingToClientGoogleCalendar(newBooking);
-        setClientCalendarSyncSuccess(clientResult.success);
-        if (clientResult.success && clientResult.htmlLink) {
-          setClientCalendarEventLink(clientResult.htmlLink);
-        } else if (!clientResult.success) {
-          console.warn('Could not insert into client Google Calendar:', clientResult.error);
-        }
-      } else {
-        setClientCalendarSyncSuccess(false);
-        setClientCalendarEventLink('');
-      }
     } catch (err) {
       console.warn('Google Calendar auto-sync error:', err);
       setGoogleCalendarSyncSuccess(false);
-      setClientCalendarSyncSuccess(false);
     } finally {
       setIsSubmittingToGoogle(false);
     }
@@ -741,16 +719,6 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                         </button>
                       </div>
                     )}
-
-                    {clientUser?.provider === 'google' ? (
-                      <p className="text-[11px] text-[#666] leading-relaxed">
-                        Al confirmar, el turno se agrega a la agenda de Jessica y también a tu Google Calendar.
-                      </p>
-                    ) : (
-                      <p className="text-[11px] text-[#888] leading-relaxed">
-                        Con Google, el turno también queda en tu Calendar. Como invitada solo se reserva en la agenda del salón.
-                      </p>
-                    )}
                   </div>
 
                   {/* Campos de Nombre y Teléfono */}
@@ -905,40 +873,11 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                           Libertad y Lavalle - San Miguel de Tucumán
                         </span>
                       </div>
-                      <div className="col-span-2 pt-1 border-t border-[#F2ECE8] space-y-1.5">
+                      <div className="col-span-2 pt-1 border-t border-[#F2ECE8]">
                         <span className="text-[11px] text-[#666] flex items-center gap-1.5">
-                          <CheckCircle2
-                            size={13}
-                            className={googleCalendarSyncSuccess ? 'text-[#25D366]' : 'text-[#C9A0A3]'}
-                          />
-                          Agenda del salón (Jessica):{' '}
-                          {googleCalendarSyncSuccess ? 'sincronizada' : 'no sincronizada'}
+                          <CheckCircle2 size={13} className="text-[#25D366]" />
+                          Organizador: Jessica Lescano (<code>jujuysotf@gmail.com</code>)
                         </span>
-                        {confirmedBooking.clientAuthProvider === 'google' && (
-                          <span className="text-[11px] text-[#666] flex items-center gap-1.5">
-                            <CheckCircle2
-                              size={13}
-                              className={clientCalendarSyncSuccess ? 'text-[#25D366]' : 'text-[#C9A0A3]'}
-                            />
-                            Tu Google Calendar:{' '}
-                            {clientCalendarSyncSuccess ? (
-                              clientCalendarEventLink ? (
-                                <a
-                                  href={clientCalendarEventLink}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-[#B77176] underline font-semibold"
-                                >
-                                  turno agregado
-                                </a>
-                              ) : (
-                                'turno agregado'
-                              )
-                            ) : (
-                              'no se pudo agregar'
-                            )}
-                          </span>
-                        )}
                       </div>
                     </div>
                   </div>

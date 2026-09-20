@@ -67,7 +67,8 @@ export interface BusyRange {
 }
 
 /**
- * Queries Google Calendar FreeBusy and Events for the given date
+ * Queries Google Calendar FreeBusy and Events for the given date.
+ * Throws on auth/network/permission errors so callers don't treat failures as "empty calendar".
  */
 export async function getCalendarBusyTimes(dateStr: string): Promise<BusyRange[]> {
   const calendar = getCalendarClient();
@@ -75,65 +76,68 @@ export async function getCalendarBusyTimes(dateStr: string): Promise<BusyRange[]
     return [];
   }
 
-  try {
-    // Argentina Timezone: -03:00
-    const timeMin = `${dateStr}T00:00:00${TIMEZONE_OFFSET}`;
-    const timeMax = `${dateStr}T23:59:59${TIMEZONE_OFFSET}`;
+  // Argentina Timezone: -03:00
+  const timeMin = `${dateStr}T00:00:00${TIMEZONE_OFFSET}`;
+  const timeMax = `${dateStr}T23:59:59${TIMEZONE_OFFSET}`;
 
-    // 1. Query FreeBusy API
-    const freeBusyRes = await calendar.freebusy.query({
-      requestBody: {
-        timeMin,
-        timeMax,
-        timeZone: TIMEZONE,
-        items: [{ id: OWNER_CALENDAR_ID }]
-      }
+  // 1. Query FreeBusy API
+  const freeBusyRes = await calendar.freebusy.query({
+    requestBody: {
+      timeMin,
+      timeMax,
+      timeZone: TIMEZONE,
+      items: [{ id: OWNER_CALENDAR_ID }]
+    }
+  });
+
+  const calResult = freeBusyRes.data.calendars?.[OWNER_CALENDAR_ID];
+  if (calResult?.errors?.length) {
+    const detail = calResult.errors.map((e) => e.reason || e.domain).join(', ');
+    throw new Error(
+      `Sin acceso al Calendar de ${OWNER_CALENDAR_ID} (${detail}). Compartí el calendario con la Service Account (permiso "Hacer cambios en los eventos").`
+    );
+  }
+
+  const busyList = calResult?.busy || [];
+  const ranges: BusyRange[] = busyList.map((item) => ({
+    start: new Date(item.start!),
+    end: new Date(item.end!)
+  }));
+
+  // 2. Also query Events list to catch any all-day or specific events
+  try {
+    const eventsRes = await calendar.events.list({
+      calendarId: OWNER_CALENDAR_ID,
+      timeMin,
+      timeMax,
+      timeZone: TIMEZONE,
+      singleEvents: true,
+      orderBy: 'startTime'
     });
 
-    const busyList = freeBusyRes.data.calendars?.[OWNER_CALENDAR_ID]?.busy || [];
-    const ranges: BusyRange[] = busyList.map((item) => ({
-      start: new Date(item.start!),
-      end: new Date(item.end!)
-    }));
-
-    // 2. Also query Events list to catch any all-day or specific events
-    try {
-      const eventsRes = await calendar.events.list({
-        calendarId: OWNER_CALENDAR_ID,
-        timeMin,
-        timeMax,
-        timeZone: TIMEZONE,
-        singleEvents: true,
-        orderBy: 'startTime'
-      });
-
-      const events = eventsRes.data.items || [];
-      for (const ev of events) {
-        if (ev.status === 'cancelled') continue;
-        if (ev.start?.dateTime && ev.end?.dateTime) {
-          ranges.push({
-            start: new Date(ev.start.dateTime),
-            end: new Date(ev.end.dateTime),
-            summary: ev.summary || 'Ocupado'
-          });
-        } else if (ev.start?.date) {
-          // All-day event (e.g. vacation / closed)
-          ranges.push({
-            start: new Date(`${ev.start.date}T00:00:00${TIMEZONE_OFFSET}`),
-            end: new Date(`${ev.start.date}T23:59:59${TIMEZONE_OFFSET}`),
-            summary: ev.summary || 'Día Bloqueado'
-          });
-        }
+    const events = eventsRes.data.items || [];
+    for (const ev of events) {
+      if (ev.status === 'cancelled') continue;
+      if (ev.start?.dateTime && ev.end?.dateTime) {
+        ranges.push({
+          start: new Date(ev.start.dateTime),
+          end: new Date(ev.end.dateTime),
+          summary: ev.summary || 'Ocupado'
+        });
+      } else if (ev.start?.date) {
+        // All-day event (e.g. vacation / closed)
+        ranges.push({
+          start: new Date(`${ev.start.date}T00:00:00${TIMEZONE_OFFSET}`),
+          end: new Date(`${ev.start.date}T23:59:59${TIMEZONE_OFFSET}`),
+          summary: ev.summary || 'Día Bloqueado'
+        });
       }
-    } catch (e) {
-      console.warn('Could not fetch events list, relying on freebusy', e);
     }
-
-    return ranges;
-  } catch (err: any) {
-    console.error('Error querying Google Calendar:', err?.message || err);
-    return [];
+  } catch (e) {
+    console.warn('Could not fetch events list, relying on freebusy', e);
   }
+
+  return ranges;
 }
 
 /**

@@ -96,13 +96,13 @@ export function calculateHourSlots(
 export async function fetchGoogleCalendarAvailability(
   dateStr: string,
   durationMinutes: number = 60
-): Promise<{ slots: HourSlotStatus[]; source: string }> {
+): Promise<{ slots: HourSlotStatus[]; source: string; warning?: string }> {
   try {
     const res = await fetch(`/api/calendar/availability?date=${dateStr}&duration=${durationMinutes}`);
+    const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      throw new Error(`Server returned ${res.status}`);
+      throw new Error(data.details || data.error || `Server returned ${res.status}`);
     }
-    const data = await res.json();
     if (data.slots && Array.isArray(data.slots)) {
       return {
         slots: data.slots,
@@ -110,13 +110,13 @@ export async function fetchGoogleCalendarAvailability(
       };
     }
     throw new Error('Formato de respuesta inesperado');
-  } catch (err) {
+  } catch (err: any) {
     console.warn('Fallback to local availability due to error:', err);
-    // Fallback to local bookings
     const localBookings = getStoredBookings();
     return {
       slots: calculateHourSlots(dateStr, durationMinutes, localBookings),
-      source: 'local-fallback'
+      source: 'local-fallback',
+      warning: err?.message || 'No se pudo leer Google Calendar'
     };
   }
 }
