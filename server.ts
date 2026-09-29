@@ -5,8 +5,7 @@ import { createApiApp } from './server/createApp';
 
 const app = createApiApp();
 
-// Vercel detects this default export and runs Express as a serverless function.
-// Do NOT call app.listen() on Vercel.
+// Local Node server. On Vercel the API is api/index.cjs, built from server/vercelEntry.ts.
 export default app;
 
 async function startLocalServer() {
