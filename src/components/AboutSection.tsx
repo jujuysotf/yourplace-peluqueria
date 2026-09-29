@@ -1,5 +1,6 @@
 import React from 'react';
 import { Sparkles, Award, Scissors, CheckCircle, Calendar, MapPin } from 'lucide-react';
+import { images } from '../assets/images';
 import { salonFeatures, salonInfo } from '../data/salonData';
 
 interface AboutSectionProps {
@@ -22,7 +23,7 @@ export const AboutSection: React.FC<AboutSectionProps> = ({ onOpenBooking }) => 
               {/* Contenedor de la foto */}
               <div className="relative rounded-2xl overflow-hidden shadow-xl border-4 border-white bg-[#141213] aspect-[4/5]">
                 <img
-                  src="/src/assets/images/jessica_lescano_1789860146348.jpg"
+                  src={images.jessicaLescano}
                   alt="Jessica Lescano, Peluquera y Propietaria de Your place"
                   className="w-full h-full object-cover object-top"
                   loading="lazy"

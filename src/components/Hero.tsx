@@ -1,6 +1,7 @@
 import React from 'react';
 import { Calendar, ArrowRight, Star, Clock, MapPin, Scissors } from 'lucide-react';
 import { Logo } from './Logo';
+import { images } from '../assets/images';
 import { salonInfo } from '../data/salonData';
 
 interface HeroProps {
@@ -14,7 +15,7 @@ export const Hero: React.FC<HeroProps> = ({ onOpenBooking, onExploreServices }) 
       {/* Fondo con imagen tenue del salón y gradiente negro-oro rosa */}
       <div className="absolute inset-0 z-0 opacity-25 mix-blend-luminosity">
         <img
-          src="/src/assets/images/hero_salon_1789860136258.jpg"
+          src={images.heroSalon}
           alt="Salón de peluquería Your place"
           className="w-full h-full object-cover object-center"
         />
@@ -125,13 +126,9 @@ export const Hero: React.FC<HeroProps> = ({ onOpenBooking, onExploreServices }) 
                 >
                   <div className="w-full h-full rounded-full overflow-hidden bg-[#141213] relative">
                     <img
-                      src="/logo-piloto.jpg"
+                      src={images.logoLescanoJessica}
                       alt="Your place - Lescano Jessica Peluquería"
                       className="w-full h-full object-cover transform transition-transform duration-500 group-hover:scale-105"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        target.src = '/src/assets/images/logo_lescano_jessica_1789861198412.jpg';
-                      }}
                     />
                   </div>
                 </div>

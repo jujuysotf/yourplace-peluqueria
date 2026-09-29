@@ -1,4 +1,5 @@
 import React from 'react';
+import { images } from '../assets/images';
 
 interface LogoProps {
   size?: 'sm' | 'md' | 'lg' | 'xl';
@@ -36,16 +37,9 @@ export const Logo: React.FC<LogoProps> = ({
     >
       <div className="w-full h-full rounded-full overflow-hidden bg-[#141213] border border-[#F5D0D3]/60 relative flex items-center justify-center">
         <img
-          src="/logo-piloto.jpg"
+          src={images.logoLescanoJessica}
           alt="Your place - Lescano Jessica Peluquería"
           className="w-full h-full object-cover rounded-full transform transition-transform duration-300 group-hover:scale-105"
-          onError={(e) => {
-            // Fallback to local image in assets if public path isn't loaded
-            const target = e.target as HTMLImageElement;
-            if (!target.src.includes('logo_lescano_jessica')) {
-              target.src = '/src/assets/images/logo_lescano_jessica_1789861198412.jpg';
-            }
-          }}
         />
         {/* Subtle metallic sheen ring */}
         <div className="absolute inset-0 rounded-full border border-white/20 pointer-events-none" />

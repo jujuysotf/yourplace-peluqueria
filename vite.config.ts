@@ -11,6 +11,9 @@ export default defineConfig(() => {
         '@': path.resolve(__dirname, '.'),
       },
     },
+    // outDir is public/, so the default publicDir would point at the same folder
+    // and Vite would not copy static files into the production build.
+    publicDir: false,
     build: {
       // Vercel serves static assets from public/ when using Express backend
       outDir: 'public',

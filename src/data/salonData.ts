@@ -1,3 +1,4 @@
+import { images } from '../assets/images';
 import { Service, Stylist, PortfolioItem, Testimonial, SalonInfo } from '../types';
 
 export const salonInfo: SalonInfo = {
@@ -27,7 +28,7 @@ export const stylists: Stylist[] = [
     name: "Jessica Lescano",
     role: "Peluquera Profesional",
     bio: "Peluquera en Tucumán. Cortes, tinturas, reflejos, botox capilar y alisados con atención cálida y personalizada para el cuidado de tu cabello.",
-    image: "/src/assets/images/logo_lescano_jessica_1789861198412.jpg",
+    image: images.logoLescanoJessica,
     specialties: ["Cortes Femeninos", "Tintura & Color", "Reflejos y Claritos", "Botox Capilar", "Alisados", "Brushing"]
   }
 ];
@@ -65,7 +66,7 @@ export const services: Service[] = [
       "Matizado para evitar tonos anaranjados",
       "Lavado relajante y secado"
     ],
-    image: "/src/assets/images/balayage_portfolio_1789860155847.jpg"
+    image: images.balayagePortfolio
   },
   {
     id: "bano-luz-brillo",
@@ -151,7 +152,7 @@ export const services: Service[] = [
       "Aporta brillo y textura sedosa",
       "Sellado con planchita profesional"
     ],
-    image: "/src/assets/images/hair_treatment_botox_1789860180658.jpg"
+    image: images.hairTreatmentBotox
   },
   {
     id: "alisado-keratina",
@@ -211,7 +212,7 @@ export const portfolioItems: PortfolioItem[] = [
     title: "Balayage Cálido con Ondas Suaves",
     category: "color",
     categoryLabel: "Color & Mechas",
-    image: "/src/assets/images/balayage_portfolio_1789860155847.jpg",
+    image: images.balayagePortfolio,
     description: "Iluminación natural con transición suave desde raíz oscura hacia puntas doradas, manteniendo la salud de la fibra capilar.",
     tags: ["Balayage", "Ondas", "Colorimetría"],
     stylist: "Jessica Lescano"
@@ -221,7 +222,7 @@ export const portfolioItems: PortfolioItem[] = [
     title: "Peinado Recogido Romántico con Accesorios",
     category: "eventos",
     categoryLabel: "Peinados de Fiesta",
-    image: "/src/assets/images/bridal_updo_1789860170374.jpg",
+    image: images.bridalUpdo,
     description: "Recogido bajo con textura suave y mechones sueltos frontales para realzar las facciones en ocasiones especiales.",
     tags: ["Recogido", "Eventos", "Novias"],
     stylist: "Jessica Lescano"
@@ -231,7 +232,7 @@ export const portfolioItems: PortfolioItem[] = [
     title: "Botox Capilar con Brillo Efecto Espejo",
     category: "tratamientos",
     categoryLabel: "Tratamientos",
-    image: "/src/assets/images/hair_treatment_botox_1789860180658.jpg",
+    image: images.hairTreatmentBotox,
     description: "Relleno capilar intensivo, eliminación completa del encrespamiento y luminosidad radiante en melena larga.",
     tags: ["Botox Capilar", "Brillo Espejo", "Anti-Frizz"],
     stylist: "Jessica Lescano"
