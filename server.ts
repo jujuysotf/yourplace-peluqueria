@@ -5,7 +5,7 @@ import { createApiApp } from './server/createApp';
 
 const app = createApiApp();
 
-// Local Node server. On Vercel the API is api/index.cjs, built from server/vercelEntry.ts.
+// Local Node server. On Vercel the API is the catch-all function api/[...path].cjs.
 export default app;
 
 async function startLocalServer() {

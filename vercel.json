@@ -3,7 +3,6 @@
   "buildCommand": "npm run build",
   "outputDirectory": "public",
   "rewrites": [
-    { "source": "^/api/(?!index$)(.+)$", "destination": "/api/index?__path=$1" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }

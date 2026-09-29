@@ -9,5 +9,4 @@ coverage/
 !.env.example
 google-credentials.json
 server/credentials.json
-api/_handler.cjs
 z-doc/
