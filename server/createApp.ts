@@ -12,18 +12,31 @@ const SALON_HOURS = [
   '14:00', '15:00', '16:00', '17:00', '18:00', '19:00'
 ];
 
-/**
- * Express app with API routes only (shared by local server and Vercel).
- */
-export function createApiApp() {
-  const app = express();
-  app.use(express.json());
+function queryValue(req: express.Request, key: string): string | undefined {
+  const fromQuery = req.query?.[key];
+  if (typeof fromQuery === 'string' && fromQuery) return fromQuery;
+  const url = new URL(req.url || '/', 'http://127.0.0.1');
+  return url.searchParams.get(key) || undefined;
+}
 
-  app.get('/api/health', (_req, res) => {
-    res.json({ status: 'ok', time: new Date().toISOString() });
-  });
+async function readJsonBody(req: express.Request): Promise<any> {
+  const body = req.body;
+  if (body && typeof body === 'object' && !Buffer.isBuffer(body)) return body;
+  if (typeof body === 'string' && body.trim()) return JSON.parse(body);
 
-  app.get('/api/calendar/status', async (_req, res) => {
+  const chunks: Buffer[] = [];
+  for await (const chunk of req) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
+  const raw = Buffer.concat(chunks).toString('utf8').trim();
+  return raw ? JSON.parse(raw) : {};
+}
+
+export function healthHandler(_req: express.Request, res: express.Response) {
+  res.status(200).json({ status: 'ok', time: new Date().toISOString() });
+}
+
+export async function calendarStatusHandler(_req: express.Request, res: express.Response) {
     try {
       if (!hasCalendarCredentials()) {
         return res.json({
@@ -53,12 +66,13 @@ export function createApiApp() {
             : undefined
       });
     }
-  });
+}
 
-  app.get('/api/calendar/availability', async (req, res) => {
+export async function calendarAvailabilityHandler(req: express.Request, res: express.Response) {
     try {
-      const date = (req.query.date as string) || new Date().toISOString().split('T')[0];
-      const durationMinutes = parseInt((req.query.duration as string) || '60', 10);
+      const date = queryValue(req, 'date') || new Date().toISOString().split('T')[0];
+      const durationRaw = queryValue(req, 'duration') || '60';
+      const durationMinutes = parseInt(durationRaw, 10);
 
       const [year, month, day] = date.split('-').map(Number);
       const dateObj = new Date(year, month - 1, day);
@@ -128,9 +142,9 @@ export function createApiApp() {
         details: err?.message || String(err)
       });
     }
-  });
+}
 
-  app.post('/api/calendar/book', async (req, res) => {
+export async function calendarBookHandler(req: express.Request, res: express.Response) {
     try {
       const {
         serviceName,
@@ -142,7 +156,7 @@ export function createApiApp() {
         clientPhone,
         clientNotes,
         referenceCode
-      } = req.body;
+      } = await readJsonBody(req);
 
       if (!serviceName || !date || !time || !clientName || !clientPhone) {
         return res.status(400).json({ error: 'Faltan campos obligatorios' });
@@ -174,7 +188,20 @@ export function createApiApp() {
         details: err?.message || String(err)
       });
     }
-  });
+}
+
+/**
+ * Express app with API routes only (local server).
+ * On Vercel each handler is its own file under api/.
+ */
+export function createApiApp() {
+  const app = express();
+  app.use(express.json());
+
+  app.get('/api/health', healthHandler);
+  app.get('/api/calendar/status', calendarStatusHandler);
+  app.get('/api/calendar/availability', calendarAvailabilityHandler);
+  app.post('/api/calendar/book', calendarBookHandler);
 
   return app;
 }

@@ -5,7 +5,7 @@ import { createApiApp } from './server/createApp';
 
 const app = createApiApp();
 
-// Local Node server. On Vercel the API is the catch-all function api/[...path].cjs.
+// Local Node server. On Vercel each route is its own file: api/health.cjs and api/calendar/*.cjs.
 export default app;
 
 async function startLocalServer() {
