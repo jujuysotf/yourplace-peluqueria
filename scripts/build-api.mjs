@@ -9,11 +9,7 @@ await esbuild.build({
   },
   bundle: true,
   platform: 'node',
-  format: 'cjs',
+  format: 'esm',
   packages: 'external',
   outdir: 'api',
-  outExtension: { '.js': '.cjs' },
-  footer: {
-    js: 'module.exports = (module.exports && module.exports.default) || module.exports;',
-  },
 });

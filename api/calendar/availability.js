@@ -1,55 +1,20 @@
-var __create = Object.create;
-var __defProp = Object.defineProperty;
-var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
-var __getOwnPropNames = Object.getOwnPropertyNames;
-var __getProtoOf = Object.getPrototypeOf;
-var __hasOwnProp = Object.prototype.hasOwnProperty;
-var __export = (target, all) => {
-  for (var name in all)
-    __defProp(target, name, { get: all[name], enumerable: true });
-};
-var __copyProps = (to, from, except, desc) => {
-  if (from && typeof from === "object" || typeof from === "function") {
-    for (let key of __getOwnPropNames(from))
-      if (!__hasOwnProp.call(to, key) && key !== except)
-        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
-  }
-  return to;
-};
-var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
-  // If the importer is in node compatibility mode or this is not an ESM
-  // file that has been converted to a CommonJS file using a Babel-
-  // compatible transform (i.e. "__esModule" has not been set), then set
-  // "default" to the CommonJS "module.exports" for node compatibility.
-  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
-  mod
-));
-var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
-
-// server/handlers/calendarAvailability.ts
-var calendarAvailability_exports = {};
-__export(calendarAvailability_exports, {
-  default: () => calendarAvailabilityHandler
-});
-module.exports = __toCommonJS(calendarAvailability_exports);
-
 // server/createApp.ts
-var import_express = __toESM(require("express"), 1);
+import express from "express";
 
 // server/calendarService.ts
-var import_googleapis = require("googleapis");
-var import_fs = __toESM(require("fs"), 1);
-var import_path = __toESM(require("path"), 1);
+import { google } from "googleapis";
+import fs from "fs";
+import path from "path";
 var OWNER_CALENDAR_ID = "jujuysotf@gmail.com";
 var TIMEZONE = "America/Argentina/Buenos_Aires";
 var TIMEZONE_OFFSET = "-03:00";
 function getCalendarClient() {
   let clientEmail;
   let privateKey;
-  const credPath = import_path.default.join(process.cwd(), "google-credentials.json");
-  if (import_fs.default.existsSync(credPath)) {
+  const credPath = path.join(process.cwd(), "google-credentials.json");
+  if (fs.existsSync(credPath)) {
     try {
-      const raw = import_fs.default.readFileSync(credPath, "utf8");
+      const raw = fs.readFileSync(credPath, "utf8");
       const credentials = JSON.parse(raw);
       clientEmail = credentials.client_email;
       privateKey = credentials.private_key;
@@ -71,7 +36,7 @@ function getCalendarClient() {
   if (!clientEmail || !privateKey) {
     return null;
   }
-  const auth = new import_googleapis.google.auth.JWT({
+  const auth = new google.auth.JWT({
     email: clientEmail,
     key: privateKey,
     scopes: [
@@ -79,7 +44,7 @@ function getCalendarClient() {
       "https://www.googleapis.com/auth/calendar.events"
     ]
   });
-  return import_googleapis.google.calendar({ version: "v3", auth });
+  return google.calendar({ version: "v3", auth });
 }
 async function getCalendarBusyTimes(dateStr) {
   const calendar = getCalendarClient();
@@ -226,4 +191,43 @@ async function calendarAvailabilityHandler(req, res) {
     });
   }
 }
-module.exports = (module.exports && module.exports.default) || module.exports;
+
+// server/handlers/http.ts
+async function runNodeHandler(request, handler) {
+  const url = new URL(request.url);
+  let statusCode = 200;
+  let payload = null;
+  const req = {
+    url: `${url.pathname}${url.search}`,
+    query: Object.fromEntries(url.searchParams.entries()),
+    method: request.method,
+    headers: Object.fromEntries(request.headers.entries()),
+    body: void 0
+  };
+  if (request.method !== "GET" && request.method !== "HEAD") {
+    try {
+      req.body = await request.json();
+    } catch {
+      req.body = {};
+    }
+  }
+  const res = {
+    status(code) {
+      statusCode = code;
+      return this;
+    },
+    json(body) {
+      payload = body;
+    }
+  };
+  await handler(req, res);
+  return Response.json(payload, { status: statusCode });
+}
+
+// server/handlers/calendarAvailability.ts
+function GET(request) {
+  return runNodeHandler(request, calendarAvailabilityHandler);
+}
+export {
+  GET
+};
